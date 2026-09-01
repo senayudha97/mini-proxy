@@ -16,7 +16,8 @@ APPS = [
     ("Portfolio Tracker", "https://portfolio.owl-labs.online", "login: sena",      8890),
     ("Docs Viewer", "https://docs.owl-labs.online",            "tanpa login",      8891),
     ("Loan Simulator", "https://loansimulator.owl-labs.online", "tanpa login",     8892),
-    ("App Center", "https://app.owl-labs.online",              "password app",     8893),
+    ("App Center", "https://app.owl-labs.online/login", "password app", 8893),
+    ("Stirling PDF", "https://app.owl-labs.online/stirling/", "tanpa login", 8895),
     ("9router", "https://heads-badge-watched-asia.trycloudflare.com", "API — URL ephemeral", 8894),
 ]
 # ==================================
