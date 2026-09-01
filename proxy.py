@@ -17,7 +17,7 @@ APPS = [
     ("Docs Viewer", "https://docs.owl-labs.online",            "tanpa login",      8891),
     ("Loan Simulator", "https://loansimulator.owl-labs.online", "tanpa login",     8892),
     ("App Center", "https://app.owl-labs.online/login", "password app", 8893),
-    ("Stirling PDF", "https://app.owl-labs.online/stirling/", "tanpa login", 8895),
+    ("Stirling PDF", "https://app.owl-labs.online/login", "tanpa login", 8895),
     ("9router", "https://heads-badge-watched-asia.trycloudflare.com", "API — URL ephemeral", 8894),
 ]
 # ==================================
@@ -156,8 +156,12 @@ async def gateway_handle(client_r, client_w, backend):
             if h.lower().startswith(b"set-cookie:"):
                 out += b"Set-Cookie: " + rewrite_set_cookie(h.split(b":", 1)[1].strip()) + b"\r\n"
                 continue
-            if h.lower().startswith(b"location:") and origin_prefix in h:
-                h = h.split(b":", 1)[0] + b":" + h.split(b":", 1)[1].replace(origin_prefix, b"")
+            if h.lower().startswith(b"location:"):
+                hl = h.split(b":", 1)[1].strip()
+                # absolute URL ke origin → jadi path relatif biar rute pakai port gateway
+                if hl.startswith(origin_prefix):
+                    hl = hl.replace(origin_prefix, b"")
+                h = h.split(b":", 1)[0] + b": " + hl
             out += h + b"\r\n"
         out += b"\r\n"
         client_w.write(out)
