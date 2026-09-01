@@ -123,7 +123,7 @@ async def gateway_handle(client_r, client_w, backend):
         out = lines[0] + b"\r\n" + b"Connection: close\r\n"
         origin_prefix = f"{u.scheme}://{u.netloc}".encode()
         for h in lines[1:]:
-            if h.lower().startswith((b"connection:", b"alt-svc:", b"strict-transport-security:", b"transfer-encoding:")):
+            if h.lower().startswith((b"connection:", b"alt-svc:", b"strict-transport-security:")):
                 continue
             if h.lower().startswith(b"location:") and origin_prefix in h:
                 h = h.split(b":", 1)[0] + b":" + h.split(b":", 1)[1].replace(origin_prefix, b"")
