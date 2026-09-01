@@ -70,6 +70,33 @@ async def gw_pipe(src, dst):
         try: dst.close()
         except Exception: pass
 
+def rewrite_set_cookie(h: bytes) -> bytes:
+    """Adapt Set-Cookie for plain-HTTP IP:port origin.
+    Strip Secure/Domain/Partitioned, unprefix __Host-/__Secure-,
+    SameSite=None -> Lax (None requires Secure)."""
+    parts = h.split(b";")
+    nv = parts[0].split(b"=", 1)
+    if len(nv) == 2:
+        nm = nv[0].strip()
+        low = nm.lower()
+        if low.startswith(b"__host-"):
+            nm = nm[7:]
+        elif low.startswith(b"__secure-"):
+            nm = nm[9:]
+        parts[0] = nm + b"=" + nv[1]
+    keep = [parts[0]]
+    for p in parts[1:]:
+        pl = p.strip().lower()
+        if pl in (b"secure", b"partitioned") or pl.startswith(b"domain="):
+            continue
+        if pl.startswith(b"samesite"):
+            val = pl.split(b"=", 1)[1].strip() if b"=" in pl else b""
+            if val == b"none":
+                keep.append(p.replace(b"None", b"Lax").replace(b"none", b"Lax"))
+                continue
+        keep.append(p)
+    return b";".join(keep)
+
 async def gateway_handle(client_r, client_w, backend):
     u = urlsplit(backend)
     bhost, bport, tls = u.hostname, u.port or (443 if u.scheme == "https" else 80), u.scheme == "https"
@@ -94,9 +121,9 @@ async def gateway_handle(client_r, client_w, backend):
             low = h.lower()
             if low.startswith(b"content-length:"):
                 clen = int(h.split(b":", 1)[1].strip() or 0)
-        # susun ulang request: Host = backend, Connection: close
+        # susun ulang request: Host = backend, Connection: close, proto=http
         req = line + b"Host: " + f"{bhost}" .encode() + (f":{bport}".encode() if (bport not in (80, 443)) else b"") + b"\r\n" \
-              + b"Connection: close\r\n"
+              + b"Connection: close\r\n" + b"X-Forwarded-Proto: http\r\n"
         for h in raw_headers:
             if h.lower().startswith((b"host:", b"connection:", b"proxy-connection:", b"proxy-authorization:")):
                 continue
@@ -124,6 +151,9 @@ async def gateway_handle(client_r, client_w, backend):
         origin_prefix = f"{u.scheme}://{u.netloc}".encode()
         for h in lines[1:]:
             if h.lower().startswith((b"connection:", b"alt-svc:", b"strict-transport-security:")):
+                continue
+            if h.lower().startswith(b"set-cookie:"):
+                out += b"Set-Cookie: " + rewrite_set_cookie(h.split(b":", 1)[1].strip()) + b"\r\n"
                 continue
             if h.lower().startswith(b"location:") and origin_prefix in h:
                 h = h.split(b":", 1)[0] + b":" + h.split(b":", 1)[1].replace(origin_prefix, b"")
